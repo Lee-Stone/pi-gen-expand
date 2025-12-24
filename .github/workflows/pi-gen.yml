@@ -149,8 +149,10 @@ jobs:
         id: extract_release
         run: |
           VER='${{ inputs.pi-gen-version }}'
-          REL="${VER%%-*}"
-          if [[ "$REL" == *arm* ]]; then
+          # Extract release from versions like "2025-12-04-raspios-trixie-arm64" or "bookworm-arm64"
+          if [[ "$VER" =~ (trixie|bookworm|bullseye|buster|stretch|jessie|testing) ]]; then
+            REL="${BASH_REMATCH[1]}"
+          else
             REL=""
           fi
           echo "release=$REL" >> "$GITHUB_OUTPUT"
