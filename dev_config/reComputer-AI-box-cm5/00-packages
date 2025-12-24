@@ -1,5 +1,4 @@
 build-essential
 git
-raspberrypi-kernel-headers
 dkms
 hailo-all
