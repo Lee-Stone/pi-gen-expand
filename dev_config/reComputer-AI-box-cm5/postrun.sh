@@ -1,6 +1,48 @@
 #!/bin/bash -e
 set -x
 
+# Detect if running in chroot environment
+IN_CHROOT=0
+if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ]; then
+    IN_CHROOT=1
+fi
+
+# If in chroot, create first-boot service and exit
+if [ $IN_CHROOT -eq 1 ]; then
+    echo "=== In chroot: creating first-boot service ==="
+    
+    # Copy this script for first-boot execution  
+    cp "$0" /usr/local/bin/hailo-postrun.sh || true
+    chmod +x /usr/local/bin/hailo-postrun.sh
+    
+    # Create systemd service
+    cat > /etc/systemd/system/hailo-firstboot.service << 'SVCEOF'
+[Unit]
+Description=Install Hailo on first boot
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/hailo-installed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/hailo-postrun.sh
+StandardOutput=journal+console
+RemainAfterExit=yes
+ExecStartPost=/bin/touch /var/lib/hailo-installed
+ExecStartPost=/bin/systemctl disable hailo-firstboot.service
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+    
+    systemctl enable hailo-firstboot.service
+    echo "=== First-boot service enabled, exiting ==="
+    exit 0
+fi
+
+echo "=== On real hardware: running installation ==="
+
+
 arch_r=$(dpkg --print-architecture)
 BOOKWORM_NUM=12
 DEBIAN_VER=`cat /etc/debian_version`
