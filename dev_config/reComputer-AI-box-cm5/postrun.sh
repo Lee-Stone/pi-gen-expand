@@ -64,7 +64,7 @@ POSTINST_EOF
             cp -r /tmp/pcie-DEBIAN/* /tmp/pcie-data/DEBIAN/
             
             # Repack the deb with modified postinst
-            dpkg-deb -b /tmp/pcie-data /tmp/hailort-pcie-driver-patched.deb
+            dpkg-deb --root-owner-group -b /tmp/pcie-data /tmp/hailort-pcie-driver-patched.deb
             
             # Install the patched package
             dpkg -i /tmp/hailort-pcie-driver-patched.deb
