@@ -39,6 +39,17 @@ function get_kernel_version() {
 
 kernelver=$(get_kernel_version)
 
+# Try to install hailo-all package first (may fail in chroot)
+set +e
+apt-get update
+apt-get install -y hailo-all
+HAILO_INSTALL_STATUS=$?
+set -e
+
+# If hailo-all installation failed, build drivers from source
+if [ $HAILO_INSTALL_STATUS -ne 0 ]; then
+  echo "hailo-all package installation failed, building from source..."
+
 VERSION=$(apt list hailo-all | grep hailo-all | awk '{print $2}' | cut -d' ' -f1)
 git clone https://github.com/hailo-ai/hailort-drivers.git -b v$VERSION hailort-drivers
 cd hailort-drivers/linux/pcie
@@ -66,6 +77,10 @@ echo ${FIRST_USER_NAME}
 sudo echo ${FIRST_USER_NAME}
 
 cd /home/${FIRST_USER_NAME}
+else
+  echo "hailo-all package installed successfully, skipping source build"
+fi
+
 pwd
 uname -a
 git clone https://github.com/hailo-ai/hailo-rpi5-examples.git
