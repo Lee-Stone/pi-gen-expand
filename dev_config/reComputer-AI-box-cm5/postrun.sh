@@ -1,48 +1,6 @@
 #!/bin/bash -e
 set -x
 
-# Detect if running in chroot environment
-IN_CHROOT=0
-if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ]; then
-    IN_CHROOT=1
-fi
-
-# If in chroot, create first-boot service and exit
-if [ $IN_CHROOT -eq 1 ]; then
-    echo "=== In chroot: creating first-boot service ==="
-    
-    # Copy this script for first-boot execution  
-    cp "$0" /usr/local/bin/hailo-postrun.sh || true
-    chmod +x /usr/local/bin/hailo-postrun.sh
-    
-    # Create systemd service
-    cat > /etc/systemd/system/hailo-firstboot.service << 'SVCEOF'
-[Unit]
-Description=Install Hailo on first boot
-After=network-online.target
-Wants=network-online.target
-ConditionPathExists=!/var/lib/hailo-installed
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/hailo-postrun.sh
-StandardOutput=journal+console
-RemainAfterExit=yes
-ExecStartPost=/bin/touch /var/lib/hailo-installed
-ExecStartPost=/bin/systemctl disable hailo-firstboot.service
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF
-    
-    systemctl enable hailo-firstboot.service
-    echo "=== First-boot service enabled, exiting ==="
-    exit 0
-fi
-
-echo "=== On real hardware: running installation ==="
-
-
 arch_r=$(dpkg --print-architecture)
 BOOKWORM_NUM=12
 DEBIAN_VER=`cat /etc/debian_version`
@@ -81,17 +39,6 @@ function get_kernel_version() {
 
 kernelver=$(get_kernel_version)
 
-# Try to install hailo-all package first (may fail in chroot)
-set +e
-apt-get update
-apt-get install -y hailo-all
-HAILO_INSTALL_STATUS=$?
-set -e
-
-# If hailo-all installation failed, build drivers from source
-if [ $HAILO_INSTALL_STATUS -ne 0 ]; then
-  echo "hailo-all package installation failed, building from source..."
-
 VERSION=$(apt list hailo-all | grep hailo-all | awk '{print $2}' | cut -d' ' -f1)
 git clone https://github.com/hailo-ai/hailort-drivers.git -b v$VERSION hailort-drivers
 cd hailort-drivers/linux/pcie
@@ -119,10 +66,6 @@ echo ${FIRST_USER_NAME}
 sudo echo ${FIRST_USER_NAME}
 
 cd /home/${FIRST_USER_NAME}
-else
-  echo "hailo-all package installed successfully, skipping source build"
-fi
-
 pwd
 uname -a
 git clone https://github.com/hailo-ai/hailo-rpi5-examples.git

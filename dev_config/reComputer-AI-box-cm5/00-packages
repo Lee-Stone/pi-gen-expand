@@ -1,3 +1,5 @@
 build-essential
 git
+linux-headers-rpi-v8
 dkms
+hailo-all
