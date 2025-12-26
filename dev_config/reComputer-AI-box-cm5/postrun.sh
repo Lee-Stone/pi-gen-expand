@@ -8,31 +8,23 @@ if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ]; then
 fi
 
 if [ $IN_CHROOT -eq 1 ]; then
-    echo "=== Running in chroot: installing hailo-all with preemptive postinst patch ==="
+    echo "=== Running in chroot: installing hailo-all with postinst fix ==="
     
-    # Update package lists
+    # Update and try to install hailo-all (will fail on hailort-pcie-driver)
     apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y hailo-all 2>&1 | tee /tmp/hailo-install.log || true
     
-    # Download hailort-pcie-driver package without installing
-    cd /tmp
-    apt-get download hailort-pcie-driver
-    
-    # Get the actual filename
-    DEB_FILE=$(ls hailort-pcie-driver_*.deb 2>/dev/null | head -1)
-    
-    if [ -n "$DEB_FILE" ]; then
-        echo "=== Found $DEB_FILE, patching postinst ==="
+    # Check if hailort-pcie-driver failed
+    if ! dpkg -l hailort-pcie-driver 2>/dev/null | grep -q "^ii"; then
+        echo "=== hailort-pcie-driver failed as expected, applying fix ==="
         
-        # Extract control files including postinst
-        mkdir -p /tmp/pcie-DEBIAN
-        dpkg-deb -e "$DEB_FILE" /tmp/pcie-DEBIAN
-        
-        if [ -f /tmp/pcie-DEBIAN/postinst ]; then
-            # Backup original postinst
-            cp /tmp/pcie-DEBIAN/postinst /tmp/pcie-DEBIAN/postinst.bak
+        # Check if postinst exists
+        if [ -f /var/lib/dpkg/info/hailort-pcie-driver.postinst ]; then
+            echo "=== Backing up and modifying postinst ==="
+            cp /var/lib/dpkg/info/hailort-pcie-driver.postinst /var/lib/dpkg/info/hailort-pcie-driver.postinst.original
             
-            # Create new postinst with chroot detection at the beginning
-            cat > /tmp/pcie-DEBIAN/postinst << 'POSTINST_EOF'
+            # Create new postinst that detects chroot
+            cat > /var/lib/dpkg/info/hailort-pcie-driver.postinst << 'NEWPOSTINST'
 #!/bin/bash
 set -eEuo pipefail
 
@@ -40,51 +32,41 @@ readonly PKG_NAME="hailort-pcie-driver"
 readonly LOG="/var/log/${PKG_NAME}.deb.log"
 echo "######### $(date) #########" >> $LOG
 
-# Check if we're in chroot - exit early to avoid modprobe failure
+# Detect chroot and skip driver operations
 if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ]; then
-    echo "Running in chroot environment" | tee -a $LOG
-    echo "Skipping driver compilation and loading" | tee -a $LOG
-    echo "Driver will be loaded on first boot" | tee -a $LOG
+    echo "=== Detected chroot environment ===" | tee -a $LOG
+    echo "Skipping driver compilation and module loading" | tee -a $LOG
+    echo "Driver will be functional after first boot" | tee -a $LOG
     exit 0
 fi
 
-# Original postinst logic (only runs on real hardware)
-POSTINST_EOF
+# Original postinst for real hardware
+NEWPOSTINST
             
-            # Append original postinst content (skip shebang and set -e lines)
-            tail -n +4 /tmp/pcie-DEBIAN/postinst.bak >> /tmp/pcie-DEBIAN/postinst
-            chmod +x /tmp/pcie-DEBIAN/postinst
+            # Append original content (skip first 3 lines: shebang, blank, set -e)
+            tail -n +4 /var/lib/dpkg/info/hailort-pcie-driver.postinst.original >> /var/lib/dpkg/info/hailort-pcie-driver.postinst
+            chmod 755 /var/lib/dpkg/info/hailort-pcie-driver.postinst
             
-            # Extract data files
-            mkdir -p /tmp/pcie-data
-            dpkg-deb -x "$DEB_FILE" /tmp/pcie-data
+            echo "=== Reconfiguring hailort-pcie-driver ==="
+            dpkg --configure hailort-pcie-driver
             
-            # Copy modified control files
-            mkdir -p /tmp/pcie-data/DEBIAN
-            cp -r /tmp/pcie-DEBIAN/* /tmp/pcie-data/DEBIAN/
+            echo "=== Reconfiguring all packages ==="
+            dpkg --configure -a
             
-            # Repack the deb with modified postinst
-            dpkg-deb --root-owner-group -b /tmp/pcie-data /tmp/hailort-pcie-driver-patched.deb
-            
-            # Install the patched package
-            dpkg -i /tmp/hailort-pcie-driver-patched.deb
-            
-            echo "=== Patched hailort-pcie-driver installed ==="
+            echo "=== Verification ==="
+            dpkg -l | grep hailort-pcie-driver
+            dpkg -l | grep hailo-all
+        else
+            echo "ERROR: postinst file not found!"
+            exit 1
         fi
-        
-        # Cleanup temporary files
-        rm -rf /tmp/pcie-DEBIAN /tmp/pcie-data "$DEB_FILE"
+    else
+        echo "=== hailort-pcie-driver already configured ==="
     fi
     
-    # Now install hailo-all (should succeed)
-    DEBIAN_FRONTEND=noninteractive apt-get install -y hailo-all
-    
-    # Final cleanup
-    rm -f /tmp/hailort-pcie-driver-patched.deb
-    
-    echo "=== hailo-all installation completed in chroot ==="
+    echo "=== hailo-all installation completed ==="
 else
-    echo "=== Running on real hardware: installing hailo-all ==="
+    echo "=== Running on real hardware: standard installation ==="
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y hailo-all
 fi
