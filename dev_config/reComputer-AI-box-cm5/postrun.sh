@@ -103,6 +103,8 @@ DEBIAN_NUM=$(echo "$DEBIAN_VER" | awk -F'.' '{print $1}')
 _VER_RUN=""
 function get_kernel_version() {
   local ZIMAGE IMG_OFFSET
+  # Get installed kernel version from config.txt or detect from available kernels
+  local uname_r=$(ls /boot/firmware/kernel*.img 2>/dev/null | grep -o 'kernel[^.]*' | head -1)
 
   if [ -z "$_VER_RUN" ]; then
     if [ $DEBIAN_NUM -lt $BOOKWORM_NUM ]; then
