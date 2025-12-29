@@ -140,9 +140,11 @@ cd hailort-drivers/linux/pcie
 
 make all kernelver=$kernelver
 
-# Install the compiled driver to the system
+# Install the compiled driver to the system (manual install to avoid depmod issues in chroot)
 echo "Installing compiled driver to /lib/modules/$kernelver/"
-make install kernelver=$kernelver
+mkdir -p /lib/modules/$kernelver/kernel/drivers/misc
+cp hailo_pci.ko /lib/modules/$kernelver/kernel/drivers/misc/
+echo "Driver installed successfully"
 
 cd ../..
 
