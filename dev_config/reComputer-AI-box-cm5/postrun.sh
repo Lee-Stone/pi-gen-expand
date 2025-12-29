@@ -140,6 +140,10 @@ cd hailort-drivers/linux/pcie
 
 make all kernelver=$kernelver
 
+# Install the compiled driver to the system
+echo "Installing compiled driver to /lib/modules/$kernelver/"
+make install kernelver=$kernelver
+
 cd ../..
 
 if [ -f "./download_firmware.sh" ]; then
