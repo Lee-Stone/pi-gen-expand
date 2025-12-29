@@ -146,6 +146,11 @@ mkdir -p /lib/modules/$kernelver/kernel/drivers/misc
 cp hailo_pci.ko /lib/modules/$kernelver/kernel/drivers/misc/
 echo "Driver installed successfully"
 
+# Remove kernel built-in hailo driver (4.20.0) to prevent conflicts
+echo "Removing kernel built-in hailo driver..."
+find /lib/modules/$kernelver/kernel/drivers/media/pci/hailo -name "hailo_pci.ko*" -delete 2>/dev/null || true
+echo "Kernel built-in driver removed"
+
 cd ../..
 
 if [ -f "./download_firmware.sh" ]; then
