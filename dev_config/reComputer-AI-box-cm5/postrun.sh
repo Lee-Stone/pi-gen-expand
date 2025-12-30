@@ -164,6 +164,14 @@ for kver_dir in /lib/modules/6.12.47+rpt-rpi*/; do
 done
 echo "All kernel versions processed"
 
+# Update module dependencies for all kernel versions
+echo "Updating module dependencies..."
+for kver_dir in /lib/modules/6.12.47+rpt-rpi*/; do
+    kver=$(basename "$kver_dir")
+    depmod -a "$kver" 2>/dev/null || true
+done
+echo "Module dependencies updated"
+
 cd ../..
 
 if [ -f "./download_firmware.sh" ]; then
