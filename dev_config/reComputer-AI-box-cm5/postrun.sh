@@ -144,10 +144,10 @@ for kver_dir in /lib/modules/6.12.47+rpt-rpi*/; do
     kver=$(basename "$kver_dir")
     echo "=== Processing kernel $kver ==="
     
-    # Compile driver for this specific kernel
+    # Compile driver for this specific kernel using correct kernel headers
     echo "  Compiling driver for $kver"
     make clean >/dev/null 2>&1 || true
-    make all kernelver=$kver
+    make all KERNEL_DIR=/lib/modules/$kver/build
     
     # Install compiled driver
     echo "  Installing to /lib/modules/$kver/kernel/drivers/misc/"
