@@ -133,31 +133,36 @@ function get_kernel_version() {
   return 0
 }
 
-kernelver=$(get_kernel_version)
-
 VERSION="${HAILO_VERSION:-$(apt list hailo-all 2>/dev/null | grep hailo-all | awk '{print $2}' | cut -d' ' -f1)}"
 echo "Hailo version: $VERSION"
 git clone https://github.com/hailo-ai/hailort-drivers.git -b v$VERSION hailort-drivers
 cd hailort-drivers/linux/pcie
 
-make all kernelver=$kernelver
-
-# Install the compiled driver and remove old drivers from ALL kernel versions
-echo "Installing compiled driver to /lib/modules/$kernelver/"
-mkdir -p /lib/modules/$kernelver/kernel/drivers/misc
-cp hailo_pci.ko /lib/modules/$kernelver/kernel/drivers/misc/
-echo "Driver installed to $kernelver"
-
-# Remove kernel built-in hailo driver (4.20.0) from ALL kernel versions to prevent conflicts
-echo "Removing kernel built-in hailo driver from all kernel versions..."
-for kver in /lib/modules/6.12.47+rpt-rpi*/; do
-    kver=$(basename "$kver")
+# Compile and install driver for ALL kernel versions
+echo "Processing all kernel versions..."
+for kver_dir in /lib/modules/6.12.47+rpt-rpi*/; do
+    kver=$(basename "$kver_dir")
+    echo "=== Processing kernel $kver ==="
+    
+    # Compile driver for this specific kernel
+    echo "  Compiling driver for $kver"
+    make clean >/dev/null 2>&1 || true
+    make all kernelver=$kver
+    
+    # Install compiled driver
+    echo "  Installing to /lib/modules/$kver/kernel/drivers/misc/"
+    mkdir -p /lib/modules/$kver/kernel/drivers/misc
+    cp hailo_pci.ko /lib/modules/$kver/kernel/drivers/misc/
+    
+    # Remove kernel built-in hailo driver (4.20.0)
     if [ -d "/lib/modules/$kver/kernel/drivers/media/pci/hailo" ]; then
-        echo "  Removing from /lib/modules/$kver/"
+        echo "  Removing old driver from $kver"
         find /lib/modules/$kver/kernel/drivers/media/pci/hailo -name "hailo_pci.ko*" -delete 2>/dev/null || true
     fi
+    
+    echo "  Completed $kver"
 done
-echo "Kernel built-in driver removal completed"
+echo "All kernel versions processed"
 
 cd ../..
 
