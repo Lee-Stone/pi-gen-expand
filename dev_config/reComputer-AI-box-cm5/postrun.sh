@@ -142,16 +142,18 @@ cd hailort-drivers/linux/pcie
 
 make all kernelver=$kernelver
 
-# Install the compiled driver to the system (manual install to avoid depmod issues in chroot)
-echo "Installing compiled driver to /lib/modules/$kernelver/"
-mkdir -p /lib/modules/$kernelver/kernel/drivers/misc
-cp hailo_pci.ko /lib/modules/$kernelver/kernel/drivers/misc/
-echo "Driver installed successfully"
-
-# Remove kernel built-in hailo driver (4.20.0) to prevent conflicts
-echo "Removing kernel built-in hailo driver..."
-find /lib/modules/$kernelver/kernel/drivers/media/pci/hailo -name "hailo_pci.ko*" -delete 2>/dev/null || true
-echo "Kernel built-in driver removed"
+# Install the compiled driver to ALL kernel versions to ensure compatibility
+echo "Installing compiled driver to all kernel versions..."
+for kver in /lib/modules/6.12.47+rpt-rpi*/; do
+    kver=$(basename "$kver")
+    echo "  Installing to /lib/modules/$kver/"
+    mkdir -p /lib/modules/$kver/kernel/drivers/misc
+    cp hailo_pci.ko /lib/modules/$kver/kernel/drivers/misc/
+    # Remove kernel built-in hailo driver (4.20.0) to prevent conflicts
+    find /lib/modules/$kver/kernel/drivers/media/pci/hailo -name "hailo_pci.ko*" -delete 2>/dev/null || true
+    echo "  Processed $kver"
+done
+echo "Driver installation and cleanup completed for all kernel versions"
 
 cd ../..
 
