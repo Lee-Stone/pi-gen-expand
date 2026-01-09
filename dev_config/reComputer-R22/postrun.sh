@@ -55,6 +55,7 @@ fi
 # Install hailo-all
 DEBIAN_FRONTEND=noninteractive apt-get install -y hailo-all
 
+uname_r=$(uname -r)
 arch_r=$(dpkg --print-architecture)
 BOOKWORM_NUM=12
 DEBIAN_VER=`cat /etc/debian_version`
@@ -93,10 +94,9 @@ function get_kernel_version() {
 
 kernelver=$(get_kernel_version)
 
-# VERSION=$(apt list hailo-all | grep hailo-all | awk '{print $2}' | cut -d' ' -f1)
-VERSION=$(echo "$DEB_FILE" | sed "s/hailort-pcie-driver_\([0-9.]*\)_.*/\1/")
-
+VERSION=$(apt list hailo-all | grep hailo-all | awk '{print $2}' | cut -d' ' -f1)
 echo "Building HailoRT drivers version $VERSION for kernel $kernelver"
+
 git clone https://github.com/hailo-ai/hailort-drivers.git -b v$VERSION hailort-drivers
 cd hailort-drivers/linux/pcie
 
