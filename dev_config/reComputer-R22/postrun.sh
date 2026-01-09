@@ -100,7 +100,21 @@ echo "Building HailoRT drivers version $VERSION for kernel $kernelver"
 git clone https://github.com/hailo-ai/hailort-drivers.git -b v$VERSION hailort-drivers
 cd hailort-drivers/linux/pcie
 
-make all kernelver=$kernelver
+# Compile driver using correct kernel headers
+make clean >/dev/null 2>&1 || true
+make all KERNEL_DIR=/lib/modules/$kernelver/build
+
+# Install to misc directory
+mkdir -p /lib/modules/$kernelver/kernel/drivers/misc
+cp hailo_pci.ko /lib/modules/$kernelver/kernel/drivers/misc/
+
+# Remove kernel built-in hailo driver 
+if [ -d "/lib/modules/$kernelver/kernel/drivers/media/pci/hailo" ]; then
+    find /lib/modules/$kernelver/kernel/drivers/media/pci/hailo -name "hailo_pci.ko*" -delete 2>/dev/null || true
+fi
+
+# Update module dependencies
+depmod -a $kernelver 2>/dev/null || true
 
 cd ../..
 
