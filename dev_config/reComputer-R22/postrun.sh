@@ -76,7 +76,7 @@ function get_kernel_version() {
       if [[ $arch_r == "arm64" || $uname_r == *rpi-v8* ]]; then
         ZIMAGE=/boot/firmware/kernel8.img
         # if is pi5 or cm5, we use kernel_2712.img, if rpi-2712 in uname_r
-        if [[ $uname_r == *2712* ]]; then
+        if [[ $uname_r != *rpi-v8* ]]; then
           ZIMAGE=/boot/firmware/kernel_2712.img
         fi
       fi
